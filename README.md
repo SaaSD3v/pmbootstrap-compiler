@@ -1,60 +1,28 @@
-# postmarketOS Device Builder
+# postmarketOS Device Builder — Motorola Moto G7 Power
 
-GitHub Actions builder for postmarketOS device branches.
+This branch is the device-specific profile for `motorola-ocean`.
 
-## Branching rule
+## Device profile
 
-- `main`: generic build infrastructure only. No device-specific configuration.
-- `device/<codename>`: one branch per device, containing `config/device.env`.
-- Two independent workflows are kept on every branch:
-  - `.github/workflows/console.yml`
-  - `.github/workflows/phosh.yml`
+- Model: Motorola Moto G7 Power
+- Codename: `ocean`
+- SoC: Qualcomm Snapdragon 632 (SDM632 / MSM8953 family)
+- Architecture: `aarch64`
+- Device package: `device-motorola-ocean`
+- Firmware package: `firmware-motorola-ocean`
+- Kernel package: `linux-postmarketos-qcom-msm8953`
+- Kernel line: postmarketOS generic MSM8953 mainline/close-to-mainline kernel
+- DTB: `qcom/sdm632-motorola-ocean`
+- Boot stack: `lk2nd-msm8953` as required by the official device package
+- Channel: `edge`
+- Odin export: disabled
 
-The workflow files also stay on `main` because GitHub requires a `workflow_dispatch`
-workflow to exist on the default branch before the **Run workflow** button can be used.
-The jobs themselves only run when the selected ref is `device/*`.
+This branch intentionally does not patch or replace the Ocean port. It builds the existing postmarketOS `motorola-ocean` device package and the official generic MSM8953 kernel as provided by pmaports.
 
-## Required secrets
+Shared build logic is inherited from `main`; device-specific values stay in `config/device.env` on this branch.
 
-Create these repository Actions secrets:
+## Build outputs
 
-- `GOFILE_API_KEY`: Gofile API token.
-- `PMOS_PASSWORD`: password embedded in the generated postmarketOS image.
+The shared Console and Phosh workflows build the selected UI, export the standard pmbootstrap images, publish a GitHub Actions artifact, and upload only the generated build outputs to GoFile.
 
-Do not hard-code either value in the repository.
-
-## How to build
-
-Open **Actions**, select **postmarketOS Console** or **postmarketOS Phosh**,
-click **Run workflow**, and select the desired `device/<codename>` branch.
-
-A push to a `device/*` branch also starts its Console and Phosh workflows.
-Documentation-only changes (`README.md` and `DEVICE.md`) do not trigger builds.
-
-## Reproducibility
-
-Each build records the exact pmaports and pmbootstrap Git SHAs in
-`BUILD-INFO.txt`. The manual workflow also accepts optional `pmaports_ref` and
-`pmbootstrap_ref` overrides so an old build can be reproduced from a commit,
-tag, or branch.
-
-By default, device branches can track `pmaports/main`; the exact SHA actually
-used is always recorded in the output.
-
-## Output
-
-Each successful build produces:
-
-- a GitHub Actions artifact containing the exported postmarketOS files;
-- `BUILD-INFO.txt` and `SHA256SUMS`;
-- an optional Odin export when enabled by the device config;
-- a compressed `.tar.zst` package for distribution;
-- a `.sha256` checksum for that package;
-- a Gofile public folder link in the GitHub Actions Job Summary.
-
-## Add another device
-
-Create a branch from `main` named `device/<codename>`, copy
-`config/device.env.example` to `config/device.env`, and fill in the package
-names and kernel selector for that device. Keep device-specific data out of
-`main`.
+`BUILD-INFO.txt` remains in the GitHub artifact and records the exact resolved pmaports and pmbootstrap commits used for each run.
