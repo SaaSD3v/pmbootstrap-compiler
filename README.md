@@ -1,60 +1,47 @@
 # postmarketOS Device Builder
 
-GitHub Actions builder for postmarketOS device branches.
+Generic postmarketOS builder core with one branch per device.
 
 ## Branching rule
 
-- `main`: generic build infrastructure only. No device-specific configuration.
+- `main`: generic infrastructure only. No device-specific configuration.
 - `device/<codename>`: one branch per device, containing `config/device.env`.
-- Two independent workflows are kept on every branch:
-  - `.github/workflows/console.yml`
-  - `.github/workflows/phosh.yml`
 
-The workflow files also stay on `main` because GitHub requires a `workflow_dispatch`
-workflow to exist on the default branch before the **Run workflow** button can be used.
-The jobs themselves only run when the selected ref is `device/*`.
+The first device branch is `device/samsung-a21s`.
 
-## Required secrets
+## Current repository state
 
-Create these repository Actions secrets:
+The reusable build core is present in `main`, including:
 
-- `GOFILE_API_KEY`: Gofile API token.
-- `PMOS_PASSWORD`: password embedded in the generated postmarketOS image.
+- `scripts/build-pmos.sh`
+- `config/device.env.example`
+- `docs/DESIGN.md`
 
-Do not hard-code either value in the repository.
+The A21s branch contains its own `config/device.env` and uses:
 
-## How to build
+- `device-samsung-a21s`
+- `firmware-samsung-a21s`
+- `linux-postmarketos-exynos850`
+- `edge`
+- Odin export enabled
 
-Open **Actions**, select **postmarketOS Console** or **postmarketOS Phosh**,
-click **Run workflow**, and select the desired `device/<codename>` branch.
+The build script supports Console and Phosh and records the resolved pmaports and pmbootstrap SHAs in `BUILD-INFO.txt`.
 
-A push to a `device/*` branch also starts its Console and Phosh workflows.
-Documentation-only changes (`README.md` and `DEVICE.md`) do not trigger builds.
+## Intended Actions layout
+
+The complete project design uses two independent workflows:
+
+- `.github/workflows/console.yml`
+- `.github/workflows/phosh.yml`
+
+Each workflow targets only `device/*` branches and produces GitHub artifacts. The full prepared project, including the workflow definitions and GoFile helper, is available in the delivery bundle generated alongside this repository setup.
 
 ## Reproducibility
 
-Each build records the exact pmaports and pmbootstrap Git SHAs in
-`BUILD-INFO.txt`. The manual workflow also accepts optional `pmaports_ref` and
-`pmbootstrap_ref` overrides so an old build can be reproduced from a commit,
-tag, or branch.
+Device branches may track `pmaports/main`; manual builds can override pmaports and pmbootstrap refs. For Samsung Galaxy A21s regression testing, a useful historical pmaports baseline is:
 
-By default, device branches can track `pmaports/main`; the exact SHA actually
-used is always recorded in the output.
-
-## Output
-
-Each successful build produces:
-
-- a GitHub Actions artifact containing the exported postmarketOS files;
-- `BUILD-INFO.txt` and `SHA256SUMS`;
-- an optional Odin export when enabled by the device config;
-- a compressed `.tar.zst` package for distribution;
-- a `.sha256` checksum for that package;
-- a Gofile public folder link in the GitHub Actions Job Summary.
+`3ef06e837fa6ead3ea9c5b24a50350bcc5873eba`
 
 ## Add another device
 
-Create a branch from `main` named `device/<codename>`, copy
-`config/device.env.example` to `config/device.env`, and fill in the package
-names and kernel selector for that device. Keep device-specific data out of
-`main`.
+Create a branch from `main` named `device/<codename>`, copy `config/device.env.example` to `config/device.env`, and fill in that device's package names and kernel selector. Keep device-specific data out of `main`.
