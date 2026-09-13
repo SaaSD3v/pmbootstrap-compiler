@@ -12,9 +12,20 @@ if [[ -z "${GOFILE_API_KEY:-}" ]]; then
   exit 3
 fi
 
-mapfile -d '' FILES < <(find "$UPLOAD_DIR" -maxdepth 1 -type f -print0 | sort -z)
+# Gofile should contain only the files exported by pmbootstrap for flashing/booting.
+# Keep CI metadata, checksums, wrapper archives and the generated URL out of the
+# public download folder.
+mapfile -d '' FILES < <(
+  find "$UPLOAD_DIR" -maxdepth 1 -type f \
+    ! -name 'BUILD-INFO.txt' \
+    ! -name 'SHA256SUMS' \
+    ! -name '*.sha256' \
+    ! -name '*.tar.zst' \
+    ! -name 'gofile-url.txt' \
+    -print0 | sort -z
+)
 if (( ${#FILES[@]} == 0 )); then
-  echo "ERROR: no files found in $UPLOAD_DIR" >&2
+  echo "ERROR: no exported build files found in $UPLOAD_DIR" >&2
   exit 4
 fi
 
