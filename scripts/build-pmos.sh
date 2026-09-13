@@ -205,6 +205,25 @@ tar -C "$DIST_DIR" -cf - export | zstd -T0 -8 -o "$GOFILE_DIR/$ARCHIVE"
   sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
 )
 
+# Gofile uploads only top-level files. Stage the actual exported images there too,
+# flattening nested paths (for example dtbs/foo.dtb -> dtbs__foo.dtb).
+echo "==> Stage exported build files for Gofile"
+while IFS= read -r -d '' file; do
+  rel="${file#"$EXPORT_DIR/standard/"}"
+  flat_name="${rel//\//__}"
+  cp -f -- "$file" "$GOFILE_DIR/$flat_name"
+done < <(find "$EXPORT_DIR/standard" -type f -print0 | sort -z)
+
+if [[ -d "$EXPORT_DIR/odin" ]]; then
+  while IFS= read -r -d '' file; do
+    rel="${file#"$EXPORT_DIR/odin/"}"
+    flat_name="odin__${rel//\//__}"
+    cp -f -- "$file" "$GOFILE_DIR/$flat_name"
+  done < <(find "$EXPORT_DIR/odin" -type f -print0 | sort -z)
+fi
+
+cp -f -- "$EXPORT_DIR/BUILD-INFO.txt" "$EXPORT_DIR/SHA256SUMS" "$GOFILE_DIR/"
+
 if [[ -n "${GITHUB_ENV:-}" ]]; then
   {
     echo "PMOS_DEVICE=$DEVICE"
