@@ -1,60 +1,28 @@
-# postmarketOS Device Builder
+# postmarketOS Device Builder — Samsung Galaxy A21s
 
-GitHub Actions builder for postmarketOS device branches.
+This branch is the device-specific profile for `samsung-a21s`.
 
-## Branching rule
+## Device profile
 
-- `main`: generic build infrastructure only. No device-specific configuration.
-- `device/<codename>`: one branch per device, containing `config/device.env`.
-- Two independent workflows are kept on every branch:
-  - `.github/workflows/console.yml`
-  - `.github/workflows/phosh.yml`
+- Model: Samsung Galaxy A21s (SM-A217F)
+- SoC: Exynos 850
+- Architecture: `aarch64`
+- Device package: `device-samsung-a21s`
+- Firmware package: `firmware-samsung-a21s`
+- Kernel package: `linux-postmarketos-exynos850`
+- Channel: `edge`
+- Odin export: enabled
 
-The workflow files also stay on `main` because GitHub requires a `workflow_dispatch`
-workflow to exist on the default branch before the **Run workflow** button can be used.
-The jobs themselves only run when the selected ref is `device/*`.
-
-## Required secrets
-
-Create these repository Actions secrets:
-
-- `GOFILE_API_KEY`: Gofile API token.
-- `PMOS_PASSWORD`: password embedded in the generated postmarketOS image.
-
-Do not hard-code either value in the repository.
-
-## How to build
-
-Open **Actions**, select **postmarketOS Console** or **postmarketOS Phosh**,
-click **Run workflow**, and select the desired `device/<codename>` branch.
-
-A push to a `device/*` branch also starts its Console and Phosh workflows.
-Documentation-only changes (`README.md` and `DEVICE.md`) do not trigger builds.
+Shared build logic is inherited from `main`; device-specific values stay in `config/device.env` on this branch.
 
 ## Reproducibility
 
-Each build records the exact pmaports and pmbootstrap Git SHAs in
-`BUILD-INFO.txt`. The manual workflow also accepts optional `pmaports_ref` and
-`pmbootstrap_ref` overrides so an old build can be reproduced from a commit,
-tag, or branch.
+Normal builds can track `pmaports/main`. For regression testing against the historical A21s introduction baseline, use:
 
-By default, device branches can track `pmaports/main`; the exact SHA actually
-used is always recorded in the output.
+`3ef06e837fa6ead3ea9c5b24a50350bcc5873eba`
 
-## Output
+The build core records the resolved pmaports and pmbootstrap SHAs in `BUILD-INFO.txt`.
 
-Each successful build produces:
+## Intended workflows
 
-- a GitHub Actions artifact containing the exported postmarketOS files;
-- `BUILD-INFO.txt` and `SHA256SUMS`;
-- an optional Odin export when enabled by the device config;
-- a compressed `.tar.zst` package for distribution;
-- a `.sha256` checksum for that package;
-- a Gofile public folder link in the GitHub Actions Job Summary.
-
-## Add another device
-
-Create a branch from `main` named `device/<codename>`, copy
-`config/device.env.example` to `config/device.env`, and fill in the package
-names and kernel selector for that device. Keep device-specific data out of
-`main`.
+The project design uses two separate GitHub Actions workflows, one for Console and one for Phosh. The complete prepared project files, including those workflow YAMLs and the GoFile helper, are included in the delivery bundle prepared for this repository.
