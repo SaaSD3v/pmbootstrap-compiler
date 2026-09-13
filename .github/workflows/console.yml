@@ -1,0 +1,88 @@
+name: postmarketOS Console
+
+on:
+  workflow_dispatch:
+    inputs:
+      pmaports_ref:
+        description: Optional pmaports branch, tag, or commit override
+        required: false
+        type: string
+      pmbootstrap_ref:
+        description: Optional pmbootstrap branch, tag, or commit override
+        required: false
+        type: string
+  push:
+    branches:
+      - 'device/**'
+    paths-ignore:
+      - 'README.md'
+      - 'DEVICE.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pmos-console-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: startsWith(github.ref, 'refs/heads/device/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PMOS_UI: console
+
+    steps:
+      - name: Checkout selected device branch
+        uses: actions/checkout@v4
+
+      - name: Validate device branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f config/device.env || {
+            echo '::error::config/device.env is missing. Select a device/* branch.'
+            exit 1
+          }
+          # shellcheck disable=SC1091
+          source config/device.env
+          test -n "${DEVICE:-}" || {
+            echo '::error::DEVICE is missing from config/device.env'
+            exit 1
+          }
+          echo "PMOS_DEVICE=$DEVICE" >> "$GITHUB_ENV"
+
+      - name: Install host dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates curl git jq openssl python3 sudo tar xz-utils zstd
+
+      - name: Build postmarketOS Console
+        shell: bash
+        env:
+          PMOS_PASSWORD: ${{ secrets.PMOS_PASSWORD }}
+          PMAPORTS_REF_OVERRIDE: ${{ inputs.pmaports_ref }}
+          PMBOOTSTRAP_REF_OVERRIDE: ${{ inputs.pmbootstrap_ref }}
+        run: ./scripts/build-pmos.sh console
+
+      - name: Upload GitHub artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pmos-${{ env.PMOS_DEVICE }}-console-${{ github.sha }}
+          path: dist/export/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+
+      - name: Upload final package to Gofile
+        id: gofile
+        shell: bash
+        env:
+          GOFILE_API_KEY: ${{ secrets.GOFILE_API_KEY }}
+          PMOS_DEVICE: ${{ env.PMOS_DEVICE }}
+          PMOS_UI: console
+        run: ./scripts/upload-gofile.sh dist/gofile
