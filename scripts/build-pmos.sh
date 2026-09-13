@@ -187,9 +187,11 @@ EOF_INFO
 
 (
   cd "$EXPORT_DIR"
-  find . -type f ! -name SHA256SUMS -print0 \
+  # pmbootstrap export may create symlinks to files in the work directory.
+  # Follow them so exported images are included in the checksum manifest.
+  find -L . -type f ! -name SHA256SUMS -print0 \
     | sort -z \
-    | xargs -0 sha256sum > SHA256SUMS
+    | xargs -0 -r sha256sum > SHA256SUMS
 )
 
 SHORT_SHA="${REPO_SHA:0:12}"
@@ -199,30 +201,42 @@ fi
 ARCHIVE="pmos-${DEVICE}-${UI}-${SHORT_SHA}.tar.zst"
 
 echo "==> Create distribution archive: $ARCHIVE"
-tar -C "$DIST_DIR" -cf - export | zstd -T0 -8 -o "$GOFILE_DIR/$ARCHIVE"
+# Dereference pmbootstrap export symlinks so the downloaded archive contains
+# the actual image bytes rather than links into the ephemeral CI workdir.
+tar --dereference -C "$DIST_DIR" -cf - export | zstd -T0 -8 -o "$GOFILE_DIR/$ARCHIVE"
 (
   cd "$GOFILE_DIR"
   sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
 )
 
-# Gofile uploads only top-level files. Stage the actual exported images there too,
+# Gofile uploads only top-level files. Stage the actual exported images there,
 # flattening nested paths (for example dtbs/foo.dtb -> dtbs__foo.dtb).
 echo "==> Stage exported build files for Gofile"
+STANDARD_EXPORT_COUNT=0
 while IFS= read -r -d '' file; do
   rel="${file#"$EXPORT_DIR/standard/"}"
   flat_name="${rel//\//__}"
-  cp -f -- "$file" "$GOFILE_DIR/$flat_name"
-done < <(find "$EXPORT_DIR/standard" -type f -print0 | sort -z)
+  cp -fL -- "$file" "$GOFILE_DIR/$flat_name"
+  STANDARD_EXPORT_COUNT=$((STANDARD_EXPORT_COUNT + 1))
+done < <(find -L "$EXPORT_DIR/standard" -type f -print0 | sort -z)
+
+if (( STANDARD_EXPORT_COUNT == 0 )); then
+  echo "ERROR: pmbootstrap export produced no resolvable files in $EXPORT_DIR/standard" >&2
+  exit 7
+fi
 
 if [[ -d "$EXPORT_DIR/odin" ]]; then
   while IFS= read -r -d '' file; do
     rel="${file#"$EXPORT_DIR/odin/"}"
     flat_name="odin__${rel//\//__}"
-    cp -f -- "$file" "$GOFILE_DIR/$flat_name"
-  done < <(find "$EXPORT_DIR/odin" -type f -print0 | sort -z)
+    cp -fL -- "$file" "$GOFILE_DIR/$flat_name"
+  done < <(find -L "$EXPORT_DIR/odin" -type f -print0 | sort -z)
 fi
 
 cp -f -- "$EXPORT_DIR/BUILD-INFO.txt" "$EXPORT_DIR/SHA256SUMS" "$GOFILE_DIR/"
+
+echo "==> Gofile staging manifest"
+find "$GOFILE_DIR" -maxdepth 1 -type f -printf '%f\t%s bytes\n' | sort
 
 if [[ -n "${GITHUB_ENV:-}" ]]; then
   {
@@ -244,6 +258,7 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     echo "- pmaports: \`$PMAPORTS_SHA\`"
     echo "- pmbootstrap: \`$PMBOOTSTRAP_SHA\`"
     echo "- Archive: \`$ARCHIVE\`"
+    echo "- Gofile staged export files: \`$STANDARD_EXPORT_COUNT\`"
   } >> "$GITHUB_STEP_SUMMARY"
 fi
 
