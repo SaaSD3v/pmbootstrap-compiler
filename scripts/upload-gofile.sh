@@ -30,7 +30,10 @@ if (( ${#FILES[@]} == 0 )); then
 fi
 
 AUTH=( -H "Authorization: Bearer $GOFILE_API_KEY" )
-CURL=( curl --silent --show-error --fail-with-body --retry 5 --retry-delay 2 --retry-all-errors )
+# Do not use --fail-with-body together with curl retries here. On transient HTTP
+# errors curl can concatenate failed response bodies with the later successful
+# JSON response, which makes jq reject an upload that actually succeeded.
+CURL=( curl --silent --show-error --fail --retry 5 --retry-delay 2 --retry-all-errors )
 
 expect_ok() {
   local response="$1" context="$2"
