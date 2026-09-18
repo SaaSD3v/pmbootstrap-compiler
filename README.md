@@ -1,27 +1,26 @@
-# postmarketOS Device Builder — Motorola Moto G7 Play
+# Motorola Moto G7 Play — channel
 
-This branch is the device-specific profile for `motorola-channel`.
+Configuração do postmarketOS para o Motorola Moto G7 Play / Moto G7 Optimo.
 
-## Device profile
-
-- Model: Motorola Moto G7 Play / Moto G7 Optimo
-- Codename: `channel`
-- SoC: Qualcomm Snapdragon 632 (SDM632)
-- Architecture: `aarch64`
+- Branch: `device/motorola-channel`
+- Arquitetura: `aarch64`
+- SoC: Snapdragon 632
 - Device package: `device-motorola-channel`
-- Firmware package: `firmware-motorola-channel`
-- Kernel package: `linux-motorola-channel`
-- Kernel line: downstream Linux 4.9.206
-- Channel: `edge`
-- Flash method from the port: `fastboot`
-- Odin export: disabled
+- Kernel: `linux-motorola-channel`
+- Kernel base: Linux 4.9.206 downstream
+- Firmware: `firmware-motorola-channel`
+- Canal: `edge`
 
-This branch intentionally does not patch, replace, or mainline the device kernel. It builds the existing postmarketOS `motorola-channel` port as provided by pmaports.
+## Fontes
 
-Shared build logic is inherited from `main`; device-specific values stay in `config/device.env` on this branch.
+- postmarketOS device: https://pkgs.postmarketos.org/package/main/postmarketos/aarch64/device-motorola-channel
+- postmarketOS kernel: https://pkgs.postmarketos.org/package/main/postmarketos/aarch64/linux-motorola-channel
+- Wiki: https://wiki.postmarketos.org/wiki/Motorola_Moto_G7_Play_(motorola-channel)
 
-## Build outputs
+O port usa o kernel downstream SDM632/LineageOS mantido pelo pacote do postmarketOS.
 
-The shared Console and Phosh workflows build the selected UI, export the standard pmbootstrap images, publish a GitHub Actions artifact, and upload the staged build files to GoFile.
+## Build
 
-`BUILD-INFO.txt` records the exact resolved pmaports and pmbootstrap commits used for each run.
+No Actions escolha esta branch e use Console, Phosh ou Headless Console.
+
+Senha padrão: `123456`. O campo `pmos_password` permite trocar a senha para aquela build.
