@@ -157,6 +157,11 @@ EOF_CFG
 
 PMB=(pmbootstrap --details-to-stdout -t 3600 -c "$CONFIG_FILE" -p "$PMAPORTS_SRC" -w "$WORK_DIR")
 
+if [[ -n "$USB_NETWORK_FUNCTION" ]]; then
+  echo "==> Refresh device package checksums after deviceinfo override"
+  "${PMB[@]}" checksum "$DEVICE_PACKAGE"
+fi
+
 pmbootstrap --version
 "${PMB[@]}" status
 
