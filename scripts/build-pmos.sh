@@ -49,6 +49,7 @@ EXTRA_SPACE="${EXTRA_SPACE:-0}"
 CCACHE_SIZE="${CCACHE_SIZE:-2G}"
 EXPORT_ODIN="${EXPORT_ODIN:-false}"
 KCONFIG_CHECK="${KCONFIG_CHECK:-true}"
+USB_NETWORK_FUNCTION="${PMOS_USB_NETWORK_FUNCTION:-}"
 
 RUNNER_TMP="${RUNNER_TEMP:-/tmp}"
 PMB_SRC="$RUNNER_TMP/pmbootstrap-src"
@@ -84,6 +85,37 @@ clone_at_ref \
   "https://gitlab.postmarketos.org/postmarketOS/pmaports.git" \
   "$PMAPORTS_SRC" \
   "$PMAPORTS_REF_EFFECTIVE"
+
+if [[ -n "$USB_NETWORK_FUNCTION" ]]; then
+  case "$USB_NETWORK_FUNCTION" in
+    ncm.usb0|rndis.usb0|ecm.usb0) ;;
+    *)
+      echo "ERROR: unsupported PMOS_USB_NETWORK_FUNCTION: $USB_NETWORK_FUNCTION" >&2
+      exit 8
+      ;;
+  esac
+
+  mapfile -t DEVICEINFO_FILES < <(
+    find "$PMAPORTS_SRC/device" -type f -path "*/$DEVICE_PACKAGE/deviceinfo" -print
+  )
+
+  if (( ${#DEVICEINFO_FILES[@]} != 1 )); then
+    echo "ERROR: expected exactly one deviceinfo for $DEVICE_PACKAGE, found ${#DEVICEINFO_FILES[@]}" >&2
+    printf '  %s\n' "${DEVICEINFO_FILES[@]}" >&2
+    exit 8
+  fi
+
+  DEVICEINFO_FILE="${DEVICEINFO_FILES[0]}"
+  echo "==> Override USB network function: $USB_NETWORK_FUNCTION"
+
+  if grep -q '^deviceinfo_usb_network_function=' "$DEVICEINFO_FILE"; then
+    sed -i "s|^deviceinfo_usb_network_function=.*|deviceinfo_usb_network_function=\"$USB_NETWORK_FUNCTION\"|" "$DEVICEINFO_FILE"
+  else
+    printf '\ndeviceinfo_usb_network_function="%s"\n' "$USB_NETWORK_FUNCTION" >> "$DEVICEINFO_FILE"
+  fi
+
+  grep '^deviceinfo_usb_network_function=' "$DEVICEINFO_FILE"
+fi
 
 PMBOOTSTRAP_SHA="$(git -C "$PMB_SRC" rev-parse HEAD)"
 PMAPORTS_SHA="$(git -C "$PMAPORTS_SRC" rev-parse HEAD)"
@@ -183,6 +215,7 @@ pmaports_sha=$PMAPORTS_SHA
 pmbootstrap_ref_requested=${PMBOOTSTRAP_REF_EFFECTIVE:-default}
 pmbootstrap_sha=$PMBOOTSTRAP_SHA
 export_odin=$EXPORT_ODIN
+usb_network_function=${USB_NETWORK_FUNCTION:-device-default}
 EOF_INFO
 
 (
@@ -258,6 +291,7 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     echo "- pmaports: \`$PMAPORTS_SHA\`"
     echo "- pmbootstrap: \`$PMBOOTSTRAP_SHA\`"
     echo "- Archive: \`$ARCHIVE\`"
+    echo "- USB network: \`${USB_NETWORK_FUNCTION:-device-default}\`"
     echo "- Gofile staged export files: \`$STANDARD_EXPORT_COUNT\`"
   } >> "$GITHUB_STEP_SUMMARY"
 fi
