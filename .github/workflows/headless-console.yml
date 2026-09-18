@@ -170,6 +170,7 @@ jobs:
           DEVICE_BRANCH: ${{ steps.device.outputs.branch }}
           PMAPORTS_REF_OVERRIDE: ${{ inputs.pmaports_ref }}
           PMBOOTSTRAP_REF_OVERRIDE: ${{ inputs.pmbootstrap_ref }}
+          PMOS_USB_NETWORK_FUNCTION: rndis.usb0
         run: |
           set -euo pipefail
                     GITHUB_REF_NAME="$DEVICE_BRANCH" \
@@ -185,8 +186,8 @@ jobs:
           Device: ${PMOS_DEVICE}
           User: ${PMOS_USER}
 
-          USB networking is expected to expose the device at 172.16.42.1 when
-          supported by the selected device port.
+          USB networking is configured as RNDIS (rndis.usb0) for direct
+          compatibility with Windows 10/11. The device is expected at 172.16.42.1.
 
           Connect from the host with:
             ping 172.16.42.1
