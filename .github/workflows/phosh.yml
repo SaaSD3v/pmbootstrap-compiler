@@ -76,7 +76,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.device.outputs.branch }}
-          path: device
           persist-credentials: false
 
 
