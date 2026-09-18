@@ -1,28 +1,27 @@
-# postmarketOS Device Builder — Motorola Moto G7 Power
+# Motorola Moto G7 Power — ocean
 
-This branch is the device-specific profile for `motorola-ocean`.
+Configuração usada para o Motorola Moto G7 Power.
 
-## Device profile
+- Branch: `device/motorola-ocean`
+- Arquitetura: `aarch64`
+- SoC: Snapdragon 632
+- Device package usado: `device-qcom-msm8953`
+- Kernel: `linux-postmarketos-qcom-msm8953`
+- Kernel source: `msm8953-mainline/linux`
+- Boot: `lk2nd-msm8953`
+- Canal: `edge`
 
-- Model: Motorola Moto G7 Power
-- Codename: `ocean`
-- SoC: Qualcomm Snapdragon 632 (SDM632 / MSM8953 family)
-- Architecture: `aarch64`
-- Device package: `device-motorola-ocean`
-- Firmware package: `firmware-motorola-ocean`
-- Kernel package: `linux-postmarketos-qcom-msm8953`
-- Kernel line: postmarketOS generic MSM8953 mainline/close-to-mainline kernel
-- DTB: `qcom/sdm632-motorola-ocean`
-- Boot stack: `lk2nd-msm8953` as required by the official device package
-- Channel: `edge`
-- Odin export: disabled
+O Moto G7 Power faz parte do port genérico MSM8953/SDM632 do postmarketOS.
 
-This branch intentionally does not patch or replace the Ocean port. It builds the existing postmarketOS `motorola-ocean` device package and the official generic MSM8953 kernel as provided by pmaports.
+## Fontes
 
-Shared build logic is inherited from `main`; device-specific values stay in `config/device.env` on this branch.
+- Device package: https://pkgs.postmarketos.org/package/main/postmarketos/aarch64/device-qcom-msm8953
+- Kernel: https://pkgs.postmarketos.org/package/main/postmarketos/aarch64/linux-postmarketos-qcom-msm8953
+- Kernel source: https://github.com/msm8953-mainline/linux
+- Wiki do Ocean: https://wiki.postmarketos.org/wiki/Motorola_Moto_G7_Power_(motorola-ocean)
 
-## Build outputs
+## Build
 
-The shared Console and Phosh workflows build the selected UI, export the standard pmbootstrap images, publish a GitHub Actions artifact, and upload only the generated build outputs to GoFile.
+No Actions escolha esta branch e use Console, Phosh ou Headless Console.
 
-`BUILD-INFO.txt` remains in the GitHub artifact and records the exact resolved pmaports and pmbootstrap commits used for each run.
+Senha padrão: `123456`. O campo `pmos_password` permite trocar a senha para aquela build.
