@@ -1,0 +1,217 @@
+name: postmarketOS Headless Console
+
+on:
+  workflow_dispatch:
+    inputs:
+      device_branch:
+        description: Device branch to build
+        required: true
+        default: device/motorola-channel
+        type: choice
+        options:
+          - device/motorola-channel
+          - device/motorola-ocean
+          - device/samsung-a21s
+      pmos_password:
+        description: Optional postmarketOS password override (blank = PMOS_PASSWORD secret)
+        required: false
+        type: string
+      ssh_public_key:
+        description: Optional SSH public key override (blank = PMOS_SSH_PUBLIC_KEY secret if configured)
+        required: false
+        type: string
+      pmaports_ref:
+        description: Optional pmaports branch, tag, or commit override
+        required: false
+        type: string
+      pmbootstrap_ref:
+        description: Optional pmbootstrap branch, tag, or commit override
+        required: false
+        type: string
+
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pmos-headless-console-${{ inputs.device_branch || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Resolve device branch
+        id: device
+        shell: bash
+        env:
+          INPUT_DEVICE_BRANCH: ${{ inputs.device_branch }}
+        run: |
+          set -euo pipefail
+
+          DEVICE_BRANCH="$INPUT_DEVICE_BRANCH"
+          if [[ -z "$DEVICE_BRANCH" ]]; then
+            DEVICE_BRANCH="$GITHUB_REF_NAME"
+          fi
+
+          case "$DEVICE_BRANCH" in
+            device/*) ;;
+            *)
+              echo "::error::Device branch must start with device/"
+              exit 1
+              ;;
+          esac
+
+          echo "branch=$DEVICE_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout selected device branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.device.outputs.branch }}
+          path: device
+          persist-credentials: false
+
+
+      - name: Validate device configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f config/device.env || {
+            echo '::error::config/device.env is missing from the selected device branch.'
+            exit 1
+          }
+
+          # shellcheck disable=SC1091
+          source config/device.env
+
+          test -n "${DEVICE:-}" || {
+            echo '::error::DEVICE is missing from config/device.env'
+            exit 1
+          }
+
+          test -n "${USER_NAME:-}" || USER_NAME=user
+          DEVICE_SHA="$(git rev-parse HEAD)"
+
+          {
+            echo "PMOS_DEVICE=$DEVICE"
+            echo "PMOS_USER=$USER_NAME"
+            echo "PMOS_DEVICE_SHA=$DEVICE_SHA"
+          } >> "$GITHUB_ENV"
+
+      - name: Resolve postmarketOS password
+        shell: bash
+        env:
+          INPUT_PMOS_PASSWORD: ${{ inputs.pmos_password }}
+          SECRET_PMOS_PASSWORD: ${{ secrets.PMOS_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          PASSWORD="$INPUT_PMOS_PASSWORD"
+          if [[ -z "$PASSWORD" ]]; then
+            PASSWORD="$SECRET_PMOS_PASSWORD"
+          fi
+
+          if [[ -z "$PASSWORD" ]]; then
+            echo '::error::Set pmos_password in the workflow form or configure the PMOS_PASSWORD repository secret.'
+            exit 1
+          fi
+
+          # workflow_dispatch has no password/secret input type. Mask an override
+          # before exporting it so subsequent shell output does not reveal it.
+          echo "::add-mask::$PASSWORD"
+          printf 'PMOS_PASSWORD=%s\n' "$PASSWORD" >> "$GITHUB_ENV"
+
+      - name: Install host dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates curl git jq openssl python3 sudo tar xz-utils zstd
+
+      - name: Prepare SSH access
+        shell: bash
+        env:
+          INPUT_SSH_PUBLIC_KEY: ${{ inputs.ssh_public_key }}
+          SECRET_SSH_PUBLIC_KEY: ${{ secrets.PMOS_SSH_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+
+          SSH_PUBLIC_KEY="$INPUT_SSH_PUBLIC_KEY"
+          if [[ -z "$SSH_PUBLIC_KEY" ]]; then
+            SSH_PUBLIC_KEY="$SECRET_SSH_PUBLIC_KEY"
+          fi
+
+          if [[ -z "$SSH_PUBLIC_KEY" ]]; then
+            echo 'No SSH public key supplied; password SSH login will be used.'
+            exit 0
+          fi
+
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          printf '%s\n' "$SSH_PUBLIC_KEY" > "$HOME/.ssh/postmarketos-ci.pub"
+          chmod 600 "$HOME/.ssh/postmarketos-ci.pub"
+
+          grep -q '^ssh_keys = false$' scripts/build-pmos.sh || {
+            echo '::error::Could not find the expected ssh_keys setting in build-pmos.sh'
+            exit 1
+          }
+
+          sed -i \
+            's|^ssh_keys = false$|ssh_keys = true\nssh_key_glob = ~/.ssh/postmarketos-ci.pub|' \
+            scripts/build-pmos.sh
+
+          echo 'SSH public key will be embedded in the image.'
+
+      - name: Build postmarketOS Headless Console
+        shell: bash
+        env:
+          DEVICE_BRANCH: ${{ steps.device.outputs.branch }}
+          PMAPORTS_REF_OVERRIDE: ${{ inputs.pmaports_ref }}
+          PMBOOTSTRAP_REF_OVERRIDE: ${{ inputs.pmbootstrap_ref }}
+        run: |
+          set -euo pipefail
+                    GITHUB_REF_NAME="$DEVICE_BRANCH" \
+          GITHUB_SHA="$PMOS_DEVICE_SHA" \
+            ./scripts/build-pmos.sh console
+
+      - name: Add headless access notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > dist/export/HEADLESS-ACCESS.txt <<EOF
+          postmarketOS Headless Console
+          Device: ${PMOS_DEVICE}
+          User: ${PMOS_USER}
+
+          USB networking is expected to expose the device at 172.16.42.1 when
+          supported by the selected device port.
+
+          Connect from the host with:
+            ping 172.16.42.1
+            ssh ${PMOS_USER}@172.16.42.1
+
+          Authentication:
+          - SSH key when supplied in the workflow form or PMOS_SSH_PUBLIC_KEY.
+          - Otherwise use the selected postmarketOS password.
+          EOF
+
+      - name: Upload GitHub artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pmos-${{ env.PMOS_DEVICE }}-headless-console-${{ github.run_id }}
+          path: dist/export/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+
+      - name: Upload final package to Gofile
+        id: gofile
+        shell: bash
+        env:
+          GOFILE_API_KEY: ${{ secrets.GOFILE_API_KEY }}
+          PMOS_DEVICE: ${{ env.PMOS_DEVICE }}
+          PMOS_UI: headless-console
+        run: ./scripts/upload-gofile.sh dist/gofile
