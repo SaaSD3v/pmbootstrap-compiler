@@ -79,24 +79,18 @@ jobs:
           path: device
           persist-credentials: false
 
-      - name: Checkout controller files
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          path: controller
-          persist-credentials: false
 
       - name: Validate device configuration
         shell: bash
         run: |
           set -euo pipefail
-          test -f device/config/device.env || {
+          test -f config/device.env || {
             echo '::error::config/device.env is missing from the selected device branch.'
             exit 1
           }
 
           # shellcheck disable=SC1091
-          source device/config/device.env
+          source config/device.env
 
           test -n "${DEVICE:-}" || {
             echo '::error::DEVICE is missing from config/device.env'
@@ -104,7 +98,7 @@ jobs:
           }
 
           test -n "${USER_NAME:-}" || USER_NAME=user
-          DEVICE_SHA="$(git -C device rev-parse HEAD)"
+          DEVICE_SHA="$(git rev-parse HEAD)"
 
           {
             echo "PMOS_DEVICE=$DEVICE"
@@ -166,14 +160,14 @@ jobs:
           printf '%s\n' "$SSH_PUBLIC_KEY" > "$HOME/.ssh/postmarketos-ci.pub"
           chmod 600 "$HOME/.ssh/postmarketos-ci.pub"
 
-          grep -q '^ssh_keys = false$' device/scripts/build-pmos.sh || {
+          grep -q '^ssh_keys = false$' scripts/build-pmos.sh || {
             echo '::error::Could not find the expected ssh_keys setting in build-pmos.sh'
             exit 1
           }
 
           sed -i \
             's|^ssh_keys = false$|ssh_keys = true\nssh_key_glob = ~/.ssh/postmarketos-ci.pub|' \
-            device/scripts/build-pmos.sh
+            scripts/build-pmos.sh
 
           echo 'SSH public key will be embedded in the image.'
 
@@ -185,9 +179,7 @@ jobs:
           PMBOOTSTRAP_REF_OVERRIDE: ${{ inputs.pmbootstrap_ref }}
         run: |
           set -euo pipefail
-          cd device
-
-          GITHUB_REF_NAME="$DEVICE_BRANCH" \
+                    GITHUB_REF_NAME="$DEVICE_BRANCH" \
           GITHUB_SHA="$PMOS_DEVICE_SHA" \
             ./scripts/build-pmos.sh console
 
@@ -195,7 +187,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pmos-${{ env.PMOS_DEVICE }}-console-${{ github.run_id }}
-          path: device/dist/export/
+          path: dist/export/
           if-no-files-found: error
           retention-days: 30
           compression-level: 6
@@ -207,4 +199,4 @@ jobs:
           GOFILE_API_KEY: ${{ secrets.GOFILE_API_KEY }}
           PMOS_DEVICE: ${{ env.PMOS_DEVICE }}
           PMOS_UI: console
-        run: ./controller/scripts/upload-gofile.sh device/dist/gofile
+        run: ./scripts/upload-gofile.sh dist/gofile
