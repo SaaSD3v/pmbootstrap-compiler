@@ -1,28 +1,25 @@
-# postmarketOS Device Builder — Samsung Galaxy A21s
+# Samsung Galaxy A21s
 
-This branch is the device-specific profile for `samsung-a21s`.
+Configuração do postmarketOS para o Samsung Galaxy A21s.
 
-## Device profile
-
-- Model: Samsung Galaxy A21s (SM-A217F)
+- Branch: `device/samsung-a21s`
+- Arquitetura: `aarch64`
 - SoC: Exynos 850
-- Architecture: `aarch64`
 - Device package: `device-samsung-a21s`
-- Firmware package: `firmware-samsung-a21s`
-- Kernel package: `linux-postmarketos-exynos850`
-- Channel: `edge`
-- Odin export: enabled
+- Kernel: `linux-postmarketos-exynos850`
+- Kernel source: `samsungexynos850/linux`
+- Firmware: `firmware-samsung-a21s`
+- Canal: `edge`
 
-Shared build logic is inherited from `main`; device-specific values stay in `config/device.env` on this branch.
+## Fontes
 
-## Reproducibility
+- Kernel: https://pkgs.postmarketos.org/package/main/postmarketos/aarch64/linux-postmarketos-exynos850
+- Kernel source: https://github.com/samsungexynos850/linux
+- Firmware: https://pkgs.postmarketos.org/package/main/postmarketos/aarch64/firmware-samsung-a21s
+- pmaports: https://gitlab.postmarketos.org/postmarketOS/pmaports
 
-Normal builds can track `pmaports/main`. For regression testing against the historical A21s introduction baseline, use:
+## Build
 
-`3ef06e837fa6ead3ea9c5b24a50350bcc5873eba`
+No Actions escolha esta branch e use Console, Phosh ou Headless Console.
 
-The build core records the resolved pmaports and pmbootstrap SHAs in `BUILD-INFO.txt`.
-
-## Intended workflows
-
-The project design uses two separate GitHub Actions workflows, one for Console and one for Phosh. The complete prepared project files, including those workflow YAMLs and the GoFile helper, are included in the delivery bundle prepared for this repository.
+Senha padrão: `123456`. O campo `pmos_password` permite trocar a senha para aquela build.
